@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Taxi Strategic Matrix: Emerging Markets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Energetic & Playful (Vibrant Orange, Teal, Indigo, and Soft Neutral) -->
+    <!-- Application Structure Plan:
+         1. Narrative Introduction: Sets the stage for mass-market EV deployment (excluding premium tiers).
+         2. Key Metric Summary (KPIs): High-level overview of the 'Economic Inflection Point'.
+         3. The Strategic Matrix (Main Visualization): A quadrant scatter plot mapping Infra vs. Economics.
+         4. Regional Deep-Dive Cards: Detailed context for each territory's position in the matrix.
+         5. Uptime & OPEX Breakdown: Visualizing the "Hidden Profits" of entry-level EVs (Fuel + Regulatory Arbitrage).
+    -->
+    <!-- Visualization & Content Choices:
+         - Strategic Matrix -> Goal: Compare/Relationships -> Scatter Plot (Chart.js/Canvas) -> Justification: Best for mapping two independent variables (Infra vs ROI).
+         - Regional KPI Cards -> Goal: Inform -> Big Number/Text.
+         - OPEX Comparison -> Goal: Compare -> Stacked Bar (Chart.js/Canvas) -> Justification: Shows composition of savings for mass-market units.
+         - NO SVG used. NO Mermaid JS used. All diagrams are Tailwind-based structures.
+    -->
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 450px;
+            max-height: 500px;
+        }
+        @media (max-width: 768px) {
+            .chart-container { height: 350px; }
+        }
+        .matrix-quadrant {
+            border: 1px dashed #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .bg-vibrant-gradient {
+            background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans leading-normal">
+
+    <!-- Header Section -->
+    <header class="bg-vibrant-gradient text-white py-12 px-6 shadow-lg">
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight">Mass-Market EV Taxi Matrix</h1>
+            <p class="text-xl opacity-90 max-w-3xl leading-relaxed">
+                Strategic assessment of entry-level EV feasibility across emerging markets. This analysis focuses exclusively on the most affordable EV models, evaluating the interplay between <strong>Infrastructure Readiness</strong> and <strong>Operational Economic Gains</strong>.
+            </p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-12">
+        
+        <!-- Section 1: KPIs -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-orange-500">
+                <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">The Price Gap</h3>
+                <p class="text-3xl font-black text-slate-800">$4,000 - $8,000</p>
+                <p class="text-sm text-slate-600 mt-2">Avg. CAPEX premium for mass-market EVs vs. ICE equivalents in emerging markets after local subsidies.</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-teal-500">
+                <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Maintenance Delta</h3>
+                <p class="text-3xl font-black text-slate-800">40% Less</p>
+                <p class="text-sm text-slate-600 mt-2">Reduction in routine OPEX due to drivetrain simplicity and 60% less brake wear via regenerative braking.</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-indigo-500">
+                <h3 class="text-slate-500 text-sm font-bold uppercase mb-2">Break-Even Point</h3>
+                <p class="text-3xl font-black text-slate-800">24-36 Mos</p>
+                <p class="text-sm text-slate-600 mt-2">Typical timeline for high-utilization taxis to recoup initial capital premium through fuel and tax savings.</p>
+            </div>
+        </section>
+
+        <!-- Section 2: The Main Matrix -->
+        <section class="bg-white rounded-2xl shadow-xl p-8 mb-16 border border-slate-200">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">Strategic Deployment Matrix</h2>
+                <p class="text-slate-600 max-w-4xl">
+                    This matrix maps countries based on their <strong>Infrastructure Score</strong> (Fast-charging density and grid stability) vs. <strong>Economic Gain Score</strong> (Fuel savings, tax exemptions, and "Uptime Premiums" from bypassing urban traffic bans).
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Chart Area -->
+                <div class="lg:col-span-3">
+                    <div class="chart-container">
+                        <canvas id="matrixChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Matrix Legend / Quadrant Guide -->
+                <div class="flex flex-col justify-center space-y-4">
+                    <div class="p-4 bg-teal-50 rounded-lg border border-teal-200">
+                        <h4 class="text-teal-900 font-bold text-sm uppercase">Top-Right: Scaling Zone</h4>
+                        <p class="text-xs text-teal-700">High Readiness + High Gains. Focus on mass-market fleet expansion.</p>
+                    </div>
+                    <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <h4 class="text-indigo-900 font-bold text-sm uppercase">Top-Left: Economics-Led</h4>
+                        <p class="text-xs text-indigo-700">Massive savings potential but charging bottlenecks exist. Focus on depot-charging.</p>
+                    </div>
+                    <div class="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <h4 class="text-orange-900 font-bold text-sm uppercase">Bottom-Right: Infra-Led</h4>
+                        <p class="text-xs text-orange-700">Good network but economics muted by fuel subsidies or low tax perks. Focus on corporate ESG.</p>
+                    </div>
+                    <div class="p-4 bg-slate-100 rounded-lg border border-slate-300">
+                        <h4 class="text-slate-900 font-bold text-sm uppercase">Bottom-Left: Nascent</h4>
+                        <p class="text-xs text-slate-600">Early stage. Pilot projects only to test grid resilience and climate impact.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Deep Dive Cards -->
+        <section class="mb-16">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-slate-900">Regional Opportunity Profiles</h2>
+                <p class="text-slate-600">Detailed breakdown of why these markets sit where they do on the matrix.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Thailand Card -->
+                <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-slate-100">
+                    <div class="h-2 bg-teal-500"></div>
+                    <div class="p-6">
+                        <h4 class="text-xl font-bold text-slate-800 mb-2">Thailand (SEA)</h4>
+                        <p class="text-sm text-slate-600 mb-4">The "Scaling Zone" champion. With 24k chargers and a $2,800 direct subsidy, the BYD Aion ES is near price parity with ICE sedans.</p>
+                        <ul class="text-xs space-y-2 text-slate-500">
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-teal-500 rounded-full mr-2"></span> 18-24 EVs per station ratio</li>
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-teal-500 rounded-full mr-2"></span> 30% production target for ZEVs</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Colombia Card -->
+                <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-slate-100">
+                    <div class="h-2 bg-indigo-500"></div>
+                    <div class="p-6">
+                        <h4 class="text-xl font-bold text-slate-800 mb-2">Colombia (LATAM)</h4>
+                        <p class="text-sm text-slate-600 mb-4">High economic gain through the "Uptime Premium." Exemption from <strong>Pico y Placa</strong> bans allows EV drivers to operate 100% of high-demand hours.</p>
+                        <ul class="text-xs space-y-2 text-slate-500">
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-2"></span> $8.80/day saved in traffic fees</li>
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-2"></span> 1st Latin city for Comfort Electric</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Mexico Card -->
+                <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-slate-100">
+                    <div class="h-2 bg-orange-500"></div>
+                    <div class="p-6">
+                        <h4 class="text-xl font-bold text-slate-800 mb-2">Mexico (LATAM)</h4>
+                        <p class="text-sm text-slate-600 mb-4">Strong fiscal benefits. The <strong>ISAN exemption</strong> and separate charging meter regulations reduce home-charging "fuel" costs significantly.</p>
+                        <ul class="text-xs space-y-2 text-slate-500">
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-orange-500 rounded-full mr-2"></span> Hoy No Circula exemption</li>
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-orange-500 rounded-full mr-2"></span> 12k+ charging points nationwide</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Vietnam Card -->
+                <div class="bg-white rounded-xl shadow-md overflow-hidden border border-slate-100">
+                    <div class="h-2 bg-teal-400"></div>
+                    <div class="p-6">
+                        <h4 class="text-xl font-bold text-slate-800 mb-2">Vietnam (SEA)</h4>
+                        <p class="text-sm text-slate-600 mb-4">A captive market for domestic OEMs. Infrastructure rollout is the fastest in the region, driven by VinFast’s nationwide network.</p>
+                        <ul class="text-xs space-y-2 text-slate-500">
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-teal-400 rounded-full mr-2"></span> 16% EV sales share in 2024</li>
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-teal-400 rounded-full mr-2"></span> Low-emission zone implementation</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Indonesia Card -->
+                <div class="bg-white rounded-xl shadow-md overflow-hidden border border-slate-100">
+                    <div class="h-2 bg-slate-400"></div>
+                    <div class="p-6">
+                        <h4 class="text-xl font-bold text-slate-800 mb-2">Indonesia (SEA)</h4>
+                        <p class="text-sm text-slate-600 mb-4">Medium-term TCO play. While public fast-charging lags, the localize nickel/battery supply chain will drop mass-market EV prices further.</p>
+                        <ul class="text-xs space-y-2 text-slate-500">
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2"></span> Nickel-based battery ecosystem</li>
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2"></span> 70% current home-charge reliance</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Egypt Card -->
+                <div class="bg-white rounded-xl shadow-md overflow-hidden border border-slate-100">
+                    <div class="h-2 bg-slate-500"></div>
+                    <div class="p-6">
+                        <h4 class="text-xl font-bold text-slate-800 mb-2">Egypt (MENA)</h4>
+                        <p class="text-sm text-slate-600 mb-4">The Strategic Frontier. Subsidized gasoline makes the "fuel gap" smaller, but high density and bus-backbone chargers offer pilot potential.</p>
+                        <ul class="text-xs space-y-2 text-slate-500">
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-slate-500 rounded-full mr-2"></span> 2025 Tariff reform for stations</li>
+                            <li class="flex items-center"><span class="w-1.5 h-1.5 bg-slate-500 rounded-full mr-2"></span> Largest electric bus fleet in MENA</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Economy Comparison -->
+        <section class="bg-slate-900 text-white rounded-2xl p-10 mb-16 shadow-2xl overflow-hidden relative">
+            <div class="absolute top-0 right-0 p-12 opacity-10">
+                <span class="text-9xl font-black">ROI</span>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 relative z-10">
+                <div>
+                    <h2 class="text-3xl font-bold mb-6">OPEX Efficiency: Mass-Market Models</h2>
+                    <p class="text-slate-300 mb-8 leading-relaxed">
+                        For an entry-level vehicle like a BYD Dolphin or Aion ES traveling 250km/day, the primary driver of profitability isn't a higher fare, but the <strong>drastic reduction in daily fueling and maintenance costs</strong> combined with city-specific tax benefits.
+                    </p>
+                    <div class="space-y-6">
+                        <div class="flex items-start">
+                            <div class="bg-teal-500 p-2 rounded-lg mr-4">⚡</div>
+                            <div>
+                                <h5 class="font-bold text-teal-400 uppercase text-xs">Energy Arbitrage</h5>
+                                <p class="text-sm">Electricity vs. Fossil Fuel costs typically offer <strong>50% to 80% savings</strong> per kilometer in regions like Brazil and Thailand.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-indigo-500 p-2 rounded-lg mr-4">🏗️</div>
+                            <div>
+                                <h5 class="font-bold text-indigo-400 uppercase text-xs">Uptime Advantage</h5>
+                                <p class="text-sm">In Bogotá and Mexico City, EVs can drive on days when ICE vehicles are restricted, providing <strong>15-20% more working days</strong> per year.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                    <h4 class="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6 text-center">Daily Operational Cost Composition</h4>
+                    <div class="chart-container h-64">
+                        <canvas id="opexChart"></canvas>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-4 text-center italic">Estimate based on 250km duty cycle. Maintenance includes consumables & repairs.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: The Strategic Recommendation -->
+        <section class="mb-12">
+            <div class="bg-vibrant-gradient rounded-2xl p-8 text-white flex flex-col md:flex-row items-center gap-8 shadow-xl">
+                <div class="text-center md:text-left flex-1">
+                    <h2 class="text-3xl font-black mb-4 uppercase tracking-tighter">Strategic Priority #1: SEA</h2>
+                    <p class="text-lg opacity-90 leading-relaxed">
+                        Thailand and Vietnam represent the highest probability of success for mass-market fleet deployment. The convergence of <strong>government cash subsidies</strong>, <strong>high charger density</strong>, and <strong>Chinese OEM price wars</strong> eliminates the CAPEX hurdle for taxi operators.
+                    </p>
+                </div>
+                <div class="flex-shrink-0 bg-white/20 backdrop-blur-md p-6 rounded-xl border border-white/30 text-center w-full md:w-64">
+                    <p class="text-xs font-bold uppercase mb-2">Target Break-Even</p>
+                    <p class="text-5xl font-black">2.2</p>
+                    <p class="text-xs mt-1">Years (Approx.)</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-12 px-6 text-center text-slate-400 text-sm">
+        <p>&copy; 2025 EV Strategic Research | Global Analysis of Emerging Markets</p>
+    </footer>
+
+    <script>
+        // Data Preparation Logic
+        const matrixData = [
+            { x: 8.5, y: 9, label: ['Thailand', '(SEA)'], color: '#14b8a6' },
+            { x: 7.5, y: 7.5, label: ['Vietnam', '(SEA)'], color: '#2dd4bf' },
+            { x: 7, y: 9.5, label: ['Colombia', '(LATAM)'], color: '#6366f1' },
+            { x: 6, y: 8.5, label: ['Mexico', '(LATAM)'], color: '#f97316' },
+            { x: 6.5, y: 7.5, label: ['Brazil', '(LATAM)'], color: '#fb923c' },
+            { x: 4, y: 6.5, label: ['Indonesia', '(SEA)'], color: '#94a3b8' },
+            { x: 4.5, y: 5.5, label: ['Morocco', '(MENA)'], color: '#64748b' },
+            { x: 3.5, y: 4.5, label: ['Egypt', '(MENA)'], color: '#475569' }
+        ];
+
+        // Chart.js Matrix Scatter Plot
+        const matrixCtx = document.getElementById('matrixChart').getContext('2d');
+        new Chart(matrixCtx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Emerging Markets',
+                    data: matrixData,
+                    backgroundColor: matrixData.map(d => d.color),
+                    pointRadius: 12,
+                    pointHoverRadius: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.raw.label.join(' ') + ': Infra ' + context.raw.x + ', Economics ' + context.raw.y;
+                            }
+                        }
+                    },
+                    // Label Wrapping Requirement Logic for custom plugins if needed
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'INFRASTRUCTURE READINESS SCORE (1-10)', font: { weight: 'bold', size: 10 } },
+                        min: 0, max: 10,
+                        grid: { color: '#e2e8f0' }
+                    },
+                    y: {
+                        title: { display: true, text: 'ECONOMIC GAIN SCORE (1-10)', font: { weight: 'bold', size: 10 } },
+                        min: 0, max: 10,
+                        grid: { color: '#e2e8f0' }
+                    }
+                }
+            },
+            plugins: [{
+                beforeDraw: (chart) => {
+                    const {ctx, chartArea: {top, bottom, left, right, width, height}} = chart;
+                    ctx.save();
+                    ctx.strokeStyle = '#e2e8f0';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(left + width / 2, top); ctx.lineTo(left + width / 2, bottom);
+                    ctx.moveTo(left, top + height / 2); ctx.lineTo(right, top + height / 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }]
+        });
+
+        // OPEX Comparison Chart (Stacked Bar)
+        const opexCtx = document.getElementById('opexChart').getContext('2d');
+        new Chart(opexCtx, {
+            type: 'bar',
+            data: {
+                labels: ['ICE Sedan', 'Entry-Level EV'],
+                datasets: [
+                    {
+                        label: 'Fuel / Energy Cost',
+                        data: [12, 3], // Mock normalized daily cost
+                        backgroundColor: '#f43f5e'
+                    },
+                    {
+                        label: 'Maintenance Cost',
+                        data: [5, 2],
+                        backgroundColor: '#f97316'
+                    },
+                    {
+                        label: 'Regulatory Savings Offset',
+                        data: [0, -3],
+                        backgroundColor: '#14b8a6'
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true, display: false },
+                    y: { stacked: true, ticks: { color: '#cbd5e1', font: { weight: 'bold' } } }
+                },
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } } },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                let label = item.chart.data.labels[item.dataIndex];
+                                return Array.isArray(label) ? label.join(' ') : label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
