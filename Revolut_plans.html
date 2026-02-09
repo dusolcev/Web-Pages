@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revolut Personal Plans: Interactive Comparator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FAFAF9; /* Warm neutral background */
+            color: #1F2937;
+        }
+
+        /* Custom Scrollbar for tables */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* Chart Container Styles - STRICT ADHERENCE */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+
+        /* Plan Gradients */
+        .bg-gradient-standard { background: linear-gradient(135deg, #E5E7EB 0%, #9CA3AF 100%); }
+        .bg-gradient-plus { background: linear-gradient(135deg, #60A5FA 0%, #2563EB 100%); }
+        .bg-gradient-premium { background: linear-gradient(135deg, #F472B6 0%, #BE185D 100%); }
+        .bg-gradient-metal { background: linear-gradient(135deg, #4B5563 0%, #111827 100%); }
+        .bg-gradient-ultra { background: linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 50%, #9CA3AF 100%); border: 1px solid #D1D5DB; }
+
+        .btn-active {
+            background-color: #111827;
+            color: white;
+        }
+        .btn-inactive {
+            background-color: #E5E7EB;
+            color: #374151;
+        }
+        .btn-inactive:hover {
+            background-color: #D1D5DB;
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #2563EB;
+            cursor: pointer;
+            margin-top: -8px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #E5E7EB;
+            border-radius: 2px;
+        }
+    </style>
+
+    <!-- Placeholder Comments -->
+    <!-- Chosen Palette: Modern Fintech Neutral (Warm Grey #FAFAF9) with Tier-Specific Accents (Blue, Pink, Gunmetal, Platinum) -->
+    <!-- Application Structure Plan: 
+         1. Hero Overview: Immediate visual differentiation of the 5 plans.
+         2. Value Calculator: A "What is your lifestyle?" interactive tool using Chart.js to calculate real annual costs based on user inputs (ATM, FX needs), proving that higher fees can save money.
+         3. Dynamic Comparison Matrix: A filterable table (Daily, Travel, Wealth) to avoid cognitive overload of a massive static list.
+         4. Ultra Value Breakdown: Specific focus on the highest tier's "Partner Benefits" to justify the high price point.
+         Why this structure? Users struggle to calculate "break-even" points on tiers. The calculator solves the primary user pain point first, then the table provides the fine print. 
+    -->
+    <!-- Visualization & Content Choices:
+         1. Calculator Bar Chart (Chart.js): Compares 'Subscription Cost' vs 'Overage Fees'. Goal: Show value. Interaction: Sliders update chart instantly.
+         2. Ultra Value Doughnut (Chart.js): Shows the monetary value of perks vs the annual fee. Goal: Justify cost.
+         3. Interactive Table: Tab-based filtering (HTML/JS). Goal: Organise dense data. 
+         4. NO SVG/Mermaid used. All icons are FontAwesome.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-blue-600 text-xl"></i>
+                <h1 class="text-xl font-bold tracking-tight text-gray-900">Plan<span class="text-blue-600">Navigator</span></h1>
+            </div>
+            <nav class="hidden md:flex gap-6 text-sm font-medium text-gray-500">
+                <a href="#overview" class="hover:text-gray-900 transition-colors">Overview</a>
+                <a href="#calculator" class="hover:text-gray-900 transition-colors">Cost Calculator</a>
+                <a href="#matrix" class="hover:text-gray-900 transition-colors">Full Comparison</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16">
+
+        <!-- Intro Section -->
+        <section id="overview" class="text-center space-y-4 max-w-3xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900">Which plan fits your wallet?</h2>
+            <p class="text-lg text-gray-600">
+                Revolut offers five distinct tiers. While the <strong>Standard</strong> plan is free, the <strong>paid tiers</strong> can actually save you money if you travel or exchange currency frequently. Explore the breakdown below.
+            </p>
+        </section>
+
+        <!-- Plan Cards (Responsive Grid) -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <!-- Standard -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 rounded-full bg-gradient-standard mb-4 flex items-center justify-center text-gray-700">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <h3 class="font-bold text-lg text-gray-900">Standard</h3>
+                <p class="text-2xl font-bold mt-2">Free</p>
+                <p class="text-xs text-gray-500 mb-4">/ month</p>
+                <ul class="text-sm text-gray-600 space-y-2 mb-6 w-full">
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>Free IBAN</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>£200 ATM Free</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-triangle-exclamation text-amber-500 mt-1"></i> <span>FX Limit £1k/mo</span></li>
+                </ul>
+            </div>
+            
+            <!-- Plus -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 rounded-full bg-gradient-plus mb-4 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-plus"></i>
+                </div>
+                <h3 class="font-bold text-lg text-gray-900">Plus</h3>
+                <p class="text-2xl font-bold mt-2">£3.99</p>
+                <p class="text-xs text-gray-500 mb-4">/ month</p>
+                <ul class="text-sm text-gray-600 space-y-2 mb-6 w-full">
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>Custom Cards</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>Purchase Protect</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>£200 ATM Free</span></li>
+                </ul>
+            </div>
+
+            <!-- Premium -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center transform scale-105 z-10 ring-2 ring-pink-500 ring-opacity-50">
+                <div class="absolute -top-3 bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Popular</div>
+                <div class="w-12 h-12 rounded-full bg-gradient-premium mb-4 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-gem"></i>
+                </div>
+                <h3 class="font-bold text-lg text-gray-900">Premium</h3>
+                <p class="text-2xl font-bold mt-2">£7.99</p>
+                <p class="text-xs text-gray-500 mb-4">/ month</p>
+                <ul class="text-sm text-gray-600 space-y-2 mb-6 w-full">
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>Unlim. FX Exchange</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>Medical Insurance</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>£400 ATM Free</span></li>
+                </ul>
+            </div>
+
+            <!-- Metal -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 rounded-full bg-gradient-metal mb-4 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-credit-card"></i>
+                </div>
+                <h3 class="font-bold text-lg text-gray-900">Metal</h3>
+                <p class="text-2xl font-bold mt-2">£14.99</p>
+                <p class="text-xs text-gray-500 mb-4">/ month</p>
+                <ul class="text-sm text-gray-600 space-y-2 mb-6 w-full">
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>Metal Card (18g)</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>Cashback (0.1%/1%)</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>£800 ATM Free</span></li>
+                </ul>
+            </div>
+
+            <!-- Ultra -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col items-center hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 rounded-full bg-gradient-ultra mb-4 flex items-center justify-center text-gray-800">
+                    <i class="fa-solid fa-crown"></i>
+                </div>
+                <h3 class="font-bold text-lg text-gray-900">Ultra</h3>
+                <p class="text-2xl font-bold mt-2">£45.00</p>
+                <p class="text-xs text-gray-500 mb-4">/ month</p>
+                <ul class="text-sm text-gray-600 space-y-2 mb-6 w-full">
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>Platinum Card</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>Full Partner Subs</span></li>
+                    <li class="flex items-start gap-2"><i class="fa-solid fa-check text-green-500 mt-1"></i> <span>£2000 ATM Free</span></li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Calculator Section -->
+        <section id="calculator" class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            <div class="p-8 border-b border-gray-100 bg-gray-50">
+                <h3 class="text-2xl font-bold text-gray-900 mb-2">Find Your "Break-Even" Plan</h3>
+                <p class="text-gray-600 text-sm">Use the sliders to simulate your monthly usage. The chart will update to show the <span class="font-semibold text-blue-600">Total Annual Cost</span> (Subscription + Extra Fees). See precisely when it's cheaper to upgrade.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 p-8">
+                <!-- Controls -->
+                <div class="space-y-8">
+                    <!-- FX Slider -->
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-semibold text-gray-700">Monthly Currency Exchange</label>
+                            <span id="fx-val" class="text-sm font-bold text-blue-600">£0</span>
+                        </div>
+                        <input type="range" id="fx-slider" min="0" max="5000" step="100" value="0" class="w-full">
+                        <p class="text-xs text-gray-400 mt-1">Spending abroad or exchanging currency.</p>
+                    </div>
+
+                    <!-- ATM Slider -->
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="text-sm font-semibold text-gray-700">Monthly ATM Withdrawals</label>
+                            <span id="atm-val" class="text-sm font-bold text-blue-600">£0</span>
+                        </div>
+                        <input type="range" id="atm-slider" min="0" max="2500" step="50" value="0" class="w-full">
+                        <p class="text-xs text-gray-400 mt-1">Cash withdrawals (2% fee after limit).</p>
+                    </div>
+
+                    <!-- Insights -->
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <h4 class="font-bold text-blue-900 text-sm mb-2"><i class="fa-solid fa-lightbulb text-yellow-500 mr-2"></i>Insight</h4>
+                        <p id="insight-text" class="text-sm text-blue-800">Move the sliders to see recommendations.</p>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="lg:col-span-2 flex flex-col justify-center">
+                    <div class="chart-container">
+                        <canvas id="costChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Comparison Matrix -->
+        <section id="matrix" class="space-y-6">
+            <div class="text-center md:text-left">
+                <h2 class="text-2xl font-bold text-gray-900">Detailed Feature Comparison</h2>
+                <p class="text-gray-600 mt-1">Toggle categories to drill down into specific benefits.</p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex flex-wrap gap-2 justify-center md:justify-start">
+                <button onclick="filterTable('all')" class="tab-btn btn-active px-4 py-2 rounded-full text-sm font-medium transition-colors" data-cat="all">All Features</button>
+                <button onclick="filterTable('banking')" class="tab-btn btn-inactive px-4 py-2 rounded-full text-sm font-medium transition-colors" data-cat="banking">Daily Banking</button>
+                <button onclick="filterTable('travel')" class="tab-btn btn-inactive px-4 py-2 rounded-full text-sm font-medium transition-colors" data-cat="travel">Travel & Insurance</button>
+                <button onclick="filterTable('wealth')" class="tab-btn btn-inactive px-4 py-2 rounded-full text-sm font-medium transition-colors" data-cat="wealth">Wealth & Invest</button>
+                <button onclick="filterTable('lifestyle')" class="tab-btn btn-inactive px-4 py-2 rounded-full text-sm font-medium transition-colors" data-cat="lifestyle">Lifestyle & Perks</button>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white custom-scrollbar">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-50 text-gray-700 font-bold uppercase text-xs border-b border-gray-200">
+                        <tr>
+                            <th class="px-6 py-4 sticky left-0 bg-gray-50 min-w-[150px]">Feature</th>
+                            <th class="px-6 py-4 text-center min-w-[120px]">Standard</th>
+                            <th class="px-6 py-4 text-center min-w-[120px] text-blue-600">Plus</th>
+                            <th class="px-6 py-4 text-center min-w-[120px] text-pink-600">Premium</th>
+                            <th class="px-6 py-4 text-center min-w-[120px] text-gray-800">Metal</th>
+                            <th class="px-6 py-4 text-center min-w-[120px] text-gray-900 bg-gray-100">Ultra</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparison-body" class="divide-y divide-gray-100">
+                        <!-- Rows generated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Ultra/Metal Perks Visualization -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center bg-gray-900 rounded-3xl p-8 lg:p-12 text-white overflow-hidden relative">
+            <!-- Decorative circle -->
+            <div class="absolute -right-20 -top-20 w-64 h-64 bg-gray-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
+
+            <div class="space-y-6 relative z-10">
+                <span class="inline-block px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full text-xs font-bold text-black uppercase tracking-wider">Top Tier Value</span>
+                <h2 class="text-3xl font-bold">Is Ultra worth £540/year?</h2>
+                <p class="text-gray-300">
+                    The sticker price is high, but the included subscriptions (Financial Times, WeWork passes, NordVPN, Tinder Gold, ClassPass, etc.) can be worth over £2,000/year if utilized.
+                </p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-4 bg-gray-800 rounded-lg border border-gray-700">
+                        <i class="fa-solid fa-newspaper text-xl mb-2 text-gray-400"></i>
+                        <div class="font-bold">Financial Times</div>
+                        <div class="text-xs text-gray-500">Included</div>
+                    </div>
+                    <div class="p-4 bg-gray-800 rounded-lg border border-gray-700">
+                        <i class="fa-solid fa-building text-xl mb-2 text-gray-400"></i>
+                        <div class="font-bold">WeWork</div>
+                        <div class="text-xs text-gray-500">3 passes/mo</div>
+                    </div>
+                    <div class="p-4 bg-gray-800 rounded-lg border border-gray-700">
+                        <i class="fa-solid fa-shield-halved text-xl mb-2 text-gray-400"></i>
+                        <div class="font-bold">NordVPN</div>
+                        <div class="text-xs text-gray-500">Included</div>
+                    </div>
+                    <div class="p-4 bg-gray-800 rounded-lg border border-gray-700">
+                        <i class="fa-solid fa-plane-departure text-xl mb-2 text-gray-400"></i>
+                        <div class="font-bold">Lounges</div>
+                        <div class="text-xs text-gray-500">Unlimited</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relative z-10 flex justify-center">
+                 <div class="bg-white p-6 rounded-2xl text-gray-900 w-full max-w-sm shadow-2xl">
+                    <h4 class="font-bold text-center mb-4">Annual Value Breakdown</h4>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="perkChart"></canvas>
+                    </div>
+                 </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-100 border-t border-gray-200 mt-12 py-10">
+        <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
+            <p class="mb-2"><strong>Disclaimer:</strong> This tool is for illustrative purposes only. Actual fees and limits depend on your country of residence (UK/EEA/US) and are subject to change by Revolut.</p>
+            <p>&copy; 2026 Comparison Tool. Not affiliated with Revolut Ltd.</p>
+        </div>
+    </footer>
+
+    <!-- Logic -->
+    <script>
+        // --- DATA STORE ---
+        const plans = {
+            standard: { name: 'Standard', fee: 0, atmLimit: 200, color: '#9CA3AF' },
+            plus: { name: 'Plus', fee: 3.99, atmLimit: 200, color: '#2563EB' },
+            premium: { name: 'Premium', fee: 7.99, atmLimit: 400, color: '#DB2777' },
+            metal: { name: 'Metal', fee: 14.99, atmLimit: 800, color: '#1F2937' },
+            ultra: { name: 'Ultra', fee: 45.00, atmLimit: 2000, color: '#D1D5DB' }
+        };
+
+        const comparisonData = [
+            // Daily Banking
+            { category: 'banking', feature: 'Monthly Fee', s: 'Free', pl: '£3.99', pr: '£7.99', m: '£14.99', u: '£45' },
+            { category: 'banking', feature: 'Free ATM (Rolling Month)', s: '£200 (5 withdraws)', pl: '£200', pr: '£400', m: '£800', u: '£2,000' },
+            { category: 'banking', feature: 'Card Delivery', s: 'Paid', pl: 'Free', pr: 'Free (Express)', m: 'Free (Express)', u: 'Free (Express)' },
+            { category: 'banking', feature: 'Card Material', s: 'Plastic', pl: 'Plastic (Custom)', pr: 'Plastic (Custom)', m: 'Reinforced Steel', u: 'Platinum Plated' },
+            
+            // Travel
+            { category: 'travel', feature: 'Currency Exchange (M-F)', s: '£1k Limit', pl: '£1k Limit', pr: 'Unlimited', m: 'Unlimited', u: 'Unlimited' },
+            { category: 'travel', feature: 'Weekend Exchange Fee', s: '1%', pl: '1%', pr: '1%', m: '1%', u: '1%' },
+            { category: 'travel', feature: 'Travel Insurance', s: '-', pl: '-', pr: 'Medical', m: 'Medical + Delay', u: 'Medical + Delay + Cancel' },
+            { category: 'travel', feature: 'Lounge Access', s: '-', pl: '-', pr: 'Discounted', m: 'Discounted', u: 'Unlimited Free' },
+            
+            // Wealth
+            { category: 'wealth', feature: 'Crypto Fees', s: '1.49%', pl: '1.49%', pr: '0.99%', m: '0.99%', u: '0.49%' },
+            { category: 'wealth', feature: 'Stock Trades', s: '1 Free/mo', pl: '3 Free/mo', pr: '5 Free/mo', m: '10 Free/mo', u: '10 Free/mo' },
+            
+            // Lifestyle
+            { category: 'lifestyle', feature: 'Purchase Protection', s: '-', pl: '£1k/year', pr: '£2.5k/year', m: '£10k/year', u: '£10k/year' },
+            { category: 'lifestyle', feature: 'Partner Subscriptions', s: '-', pl: '-', pr: 'Select Partners', m: 'Select Partners', u: 'Full Suite' },
+            { category: 'lifestyle', feature: 'Cashback', s: '-', pl: '-', pr: '-', m: '0.1% EU / 1% Non-EU', u: '0.1% EU / 1% Non-EU' },
+        ];
+
+        // --- DOM ELEMENTS ---
+        const tableBody = document.getElementById('comparison-body');
+        const fxSlider = document.getElementById('fx-slider');
+        const atmSlider = document.getElementById('atm-slider');
+        const fxValDisp = document.getElementById('fx-val');
+        const atmValDisp = document.getElementById('atm-val');
+        const insightText = document.getElementById('insight-text');
+
+        // --- INIT TABLE ---
+        function renderTable(catFilter) {
+            tableBody.innerHTML = '';
+            comparisonData.forEach(row => {
+                if (catFilter === 'all' || row.category === catFilter) {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50 transition-colors';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 font-medium text-gray-900 sticky left-0 bg-white border-r border-gray-100">${row.feature}</td>
+                        <td class="px-6 py-4 text-center text-gray-500">${row.s}</td>
+                        <td class="px-6 py-4 text-center text-gray-500">${row.pl}</td>
+                        <td class="px-6 py-4 text-center text-gray-500 font-medium text-pink-600">${row.pr}</td>
+                        <td class="px-6 py-4 text-center text-gray-500 font-medium text-gray-800">${row.m}</td>
+                        <td class="px-6 py-4 text-center text-gray-500 font-bold text-black bg-gray-50">${row.u}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                }
+            });
+        }
+
+        function filterTable(cat) {
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                if (btn.dataset.cat === cat) {
+                    btn.classList.remove('btn-inactive');
+                    btn.classList.add('btn-active');
+                } else {
+                    btn.classList.remove('btn-active');
+                    btn.classList.add('btn-inactive');
+                }
+            });
+            renderTable(cat);
+        }
+
+        // --- CHART JS: CALCULATOR ---
+        let costChart;
+
+        function initCostChart() {
+            const ctx = document.getElementById('costChart').getContext('2d');
+            costChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Standard', 'Plus', 'Premium', 'Metal', 'Ultra'],
+                    datasets: [
+                        {
+                            label: 'Annual Subscription',
+                            data: [0, 47.88, 95.88, 179.88, 540],
+                            backgroundColor: '#E5E7EB',
+                            stack: 'Stack 0',
+                        },
+                        {
+                            label: 'ATM Fees (2%)',
+                            data: [0, 0, 0, 0, 0],
+                            backgroundColor: '#F87171', // Red for penalty
+                            stack: 'Stack 0',
+                        },
+                        {
+                            label: 'FX Fees (1% Standard)',
+                            data: [0, 0, 0, 0, 0],
+                            backgroundColor: '#FBBF24', // Amber for penalty
+                            stack: 'Stack 0',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                footer: (tooltipItems) => {
+                                    let total = 0;
+                                    tooltipItems.forEach((item) => total += item.raw);
+                                    return 'Total Annual: £' + Math.round(total);
+                                }
+                            }
+                        },
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { 
+                            beginAtZero: true, 
+                            title: { display: true, text: 'Annual Cost (£)' },
+                            grid: { color: '#F3F4F6' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCalculator() {
+            const fxUsage = parseInt(fxSlider.value);
+            const atmUsage = parseInt(atmSlider.value);
+
+            fxValDisp.innerText = `£${fxUsage}`;
+            atmValDisp.innerText = `£${atmUsage}`;
+
+            // Calculation Logic
+            const annualCosts = Object.keys(plans).map(key => {
+                const p = plans[key];
+                const annualSub = p.fee * 12;
+
+                // ATM Fees: 2% over limit
+                let atmFees = 0;
+                if (atmUsage > p.atmLimit) {
+                    atmFees = (atmUsage - p.atmLimit) * 12 * 0.02;
+                }
+
+                // FX Fees: Standard/Plus have 1k limit then 1% (approx)
+                // Premium/Metal/Ultra are unlimited
+                let fxFees = 0;
+                if (key === 'standard' || key === 'plus') {
+                    if (fxUsage > 1000) {
+                        fxFees = (fxUsage - 1000) * 12 * 0.01; // 1% fair usage fee
+                    }
+                }
+
+                return { sub: annualSub, atm: atmFees, fx: fxFees, total: annualSub + atmFees + fxFees, name: p.name };
+            });
+
+            // Update Chart
+            costChart.data.datasets[0].data = annualCosts.map(c => c.sub);
+            costChart.data.datasets[1].data = annualCosts.map(c => c.atm);
+            costChart.data.datasets[2].data = annualCosts.map(c => c.fx);
+            costChart.update();
+
+            // Insight Logic
+            const cheapest = annualCosts.reduce((prev, curr) => prev.total < curr.total ? prev : curr);
+            
+            let message = "";
+            if (cheapest.name === 'Standard') {
+                message = "For low usage, <strong>Standard</strong> is unbeatable.";
+            } else {
+                message = `You'd spend less per year on <strong>${cheapest.name}</strong> (£${Math.round(cheapest.total)}) than Standard (£${Math.round(annualCosts[0].total)}) due to saved fees.`;
+            }
+            insightText.innerHTML = message;
+        }
+
+        // --- CHART JS: PERKS DOUGHNUT ---
+        function initPerkChart() {
+            const ctx = document.getElementById('perkChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Plan Cost', 'Subs Value'],
+                    datasets: [{
+                        data: [540, 2200], // Approx values
+                        backgroundColor: ['#111827', '#EAB308'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => ` £${item.raw}`
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'textCenter',
+                    beforeDraw: function(chart) {
+                        var width = chart.width,
+                            height = chart.height,
+                            ctx = chart.ctx;
+            
+                        ctx.restore();
+                        var fontSize = (height / 114).toFixed(2);
+                        ctx.font = "bold " + fontSize + "em sans-serif";
+                        ctx.textBaseline = "middle";
+            
+                        var text = "4x Value",
+                            textX = Math.round((width - ctx.measureText(text).width) / 2),
+                            textY = height / 2;
+            
+                        ctx.fillStyle = "#111827";
+                        ctx.fillText(text, textX, textY);
+                        ctx.save();
+                    }
+                }]
+            });
+        }
+
+        // --- EVENT LISTENERS ---
+        fxSlider.addEventListener('input', updateCalculator);
+        atmSlider.addEventListener('input', updateCalculator);
+
+        // --- INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            renderTable('all');
+            initCostChart();
+            initPerkChart();
+            updateCalculator(); // Run once to set initial state
+        });
+
+    </script>
+</body>
+</html>
