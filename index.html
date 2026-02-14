@@ -29,6 +29,26 @@
                 </div>
                 <div class="flex items-center gap-3">
                     <div id="authContainer"></div>
+                    <div id="loginModal" class="modal fixed inset-0 z-[60] opacity-0 pointer-events-none flex items-center justify-center p-4">
+                        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+                        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm relative z-10 overflow-hidden p-8 text-center">
+                            <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                                <i class="fa-brands fa-github"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">Device Authorization</h3>
+                            <p class="text-slate-500 text-sm mb-6">Enter the code below on GitHub to log in.</p>
+                            <div id="deviceCodeDisplay" class="bg-slate-100 rounded-xl py-4 px-6 text-3xl font-mono font-bold tracking-widest text-indigo-600 mb-6">
+                                -----
+                            </div>
+                            <a id="deviceAuthLink" href="#" target="_blank" class="block w-full bg-indigo-600 text-white py-3 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all mb-4">
+                                Open GitHub Login
+                            </a>
+                            <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest animate-pulse" id="pollingStatus">
+                                Waiting for authorization...
+                            </p>
+                            <button onclick="toggleModal('loginModal', false)" class="mt-6 text-xs text-slate-400 hover:text-slate-600 font-medium underline">Cancel</button>
+                        </div>
+                    </div>
                     <button id="addPageBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2" style="display: none;">
                         <i class="fa-solid fa-plus text-xs"></i> New Page
                     </button>
@@ -83,11 +103,6 @@
                 <div class="border-t border-slate-100 pt-4">
                     <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">GitHub OAuth Client ID</label>
                     <input type="text" id="ghClientId" placeholder="Ov23..." class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Worker Proxy URL</label>
-                    <input type="text" id="ghWorkerUrl" placeholder="https://your-worker.workers.dev" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Required for GitHub Login. See guide for setup.</p>
                 </div>
             </div>
             <div class="p-6 bg-slate-50 flex justify-end">
@@ -157,8 +172,7 @@
             username: localStorage.getItem('ghUsername') || 'dusolcev',
             repo: localStorage.getItem('ghRepo') || 'Web-Pages',
             token: localStorage.getItem('ghToken') || '',
-            clientId: localStorage.getItem('ghClientId') || '',
-            workerUrl: localStorage.getItem('ghWorkerUrl') || ''
+            clientId: localStorage.getItem('ghClientId') || ''
         };
 
         let pages = [];
@@ -218,33 +232,91 @@
         }
 
         // --- AUTH LOGIC ---
-        function login() {
+        let pollingInterval = null;
+        const CORS_PROXY = "https://corsproxy.io/?";
+
+        async function login() {
             if (!config.clientId) {
                 alert("Please configure GitHub Client ID in Settings first.");
                 toggleModal('settingsModal', true);
                 return;
             }
-            const scope = 'repo';
-            window.location.href = `https://github.com/login/oauth/authorize?client_id=${config.clientId}&scope=${scope}`;
+
+            try {
+                const response = await fetch(`${CORS_PROXY}https://github.com/login/device/code`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        client_id: config.clientId,
+                        scope: 'repo'
+                    })
+                });
+
+                const data = await response.json();
+                if (data.user_code) {
+                    document.getElementById('deviceCodeDisplay').innerText = data.user_code;
+                    document.getElementById('deviceAuthLink').href = data.verification_uri;
+                    toggleModal('loginModal', true);
+                    startPolling(data.device_code, data.interval || 5);
+                } else {
+                    alert("Failed to start login: " + (data.error_description || data.error || "Unknown error"));
+                }
+            } catch (error) {
+                alert("Error starting login. Ensure 'Device Flow' is enabled in your GitHub OAuth App settings.\nError: " + error.message);
+            }
+        }
+
+        function startPolling(deviceCode, interval) {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${CORS_PROXY}https://github.com/login/oauth/access_token`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            client_id: config.clientId,
+                            device_code: deviceCode,
+                            grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.access_token) {
+                        clearInterval(pollingInterval);
+                        config.token = data.access_token;
+                        localStorage.setItem('ghToken', config.token);
+                        toggleModal('loginModal', false);
+                        await checkAuth();
+                    } else if (data.error === 'authorization_pending') {
+                        // Keep polling
+                    } else {
+                        clearInterval(pollingInterval);
+                        if (data.error !== 'expired_token') {
+                            alert("Login failed: " + (data.error_description || data.error));
+                        }
+                        toggleModal('loginModal', false);
+                    }
+                } catch (error) {
+                    console.error("Polling error:", error);
+                }
+            }, interval * 1000);
         }
 
         function logout() {
             config.token = '';
             user = null;
             localStorage.removeItem('ghToken');
+            if (pollingInterval) clearInterval(pollingInterval);
             updateAuthUI();
         }
 
         async function checkAuth() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-
-            if (code) {
-                // Remove code from URL
-                window.history.replaceState({}, document.title, window.location.pathname);
-                await handleCallback(code);
-            }
-
             if (config.token) {
                 try {
                     const res = await fetch('https://api.github.com/user', {
@@ -261,30 +333,6 @@
                 }
             }
             updateAuthUI();
-        }
-
-        async function handleCallback(code) {
-            if (!config.clientId || !config.workerUrl) {
-                alert("Please configure Client ID and Worker URL in Settings first.");
-                toggleModal('settingsModal', true);
-                return;
-            }
-            try {
-                const res = await fetch(config.workerUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code, client_id: config.clientId })
-                });
-                const data = await res.json();
-                if (data.access_token) {
-                    config.token = data.access_token;
-                    localStorage.setItem('ghToken', config.token);
-                } else {
-                    alert("Login failed: " + (data.error_description || data.error || "Unknown error"));
-                }
-            } catch (e) {
-                alert("Error during login: " + e.message);
-            }
         }
 
         async function checkPermissions() {
@@ -473,7 +521,6 @@
             document.getElementById('ghUsername').value = config.username;
             document.getElementById('ghRepo').value = config.repo;
             document.getElementById('ghClientId').value = config.clientId;
-            document.getElementById('ghWorkerUrl').value = config.workerUrl;
 
             await checkAuth();
             loadPages();
@@ -484,11 +531,9 @@
                 config.username = document.getElementById('ghUsername').value;
                 config.repo = document.getElementById('ghRepo').value;
                 config.clientId = document.getElementById('ghClientId').value;
-                config.workerUrl = document.getElementById('ghWorkerUrl').value;
                 localStorage.setItem('ghUsername', config.username);
                 localStorage.setItem('ghRepo', config.repo);
                 localStorage.setItem('ghClientId', config.clientId);
-                localStorage.setItem('ghWorkerUrl', config.workerUrl);
                 toggleModal('settingsModal', false);
 
                 await checkAuth();
