@@ -28,7 +28,8 @@
                     <h1 class="text-xl font-bold text-slate-800 tracking-tight">Pages<span class="text-indigo-600">Hub</span></h1>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button id="addPageBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
+                    <div id="authContainer"></div>
+                    <button id="addPageBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2" style="display: none;">
                         <i class="fa-solid fa-plus text-xs"></i> New Page
                     </button>
                     <button id="settingsBtn" class="text-slate-500 hover:text-slate-800 p-2 transition-colors">
@@ -72,17 +73,21 @@
             </div>
             <div class="p-6 space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">GitHub Username</label>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">GitHub Username (Owner)</label>
                     <input type="text" id="ghUsername" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Repository Name</label>
                     <input type="text" id="ghRepo" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
+                <div class="border-t border-slate-100 pt-4">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">GitHub OAuth Client ID</label>
+                    <input type="text" id="ghClientId" placeholder="Ov23..." class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Personal Access Token</label>
-                    <input type="password" id="ghToken" placeholder="ghp_..." class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Stored locally in your browser. Required for saving changes.</p>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Worker Proxy URL</label>
+                    <input type="text" id="ghWorkerUrl" placeholder="https://your-worker.workers.dev" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <p class="text-[10px] text-slate-400 mt-1.5 leading-tight">Required for GitHub Login. See guide for setup.</p>
                 </div>
             </div>
             <div class="p-6 bg-slate-50 flex justify-end">
@@ -151,10 +156,13 @@
         let config = {
             username: localStorage.getItem('ghUsername') || 'dusolcev',
             repo: localStorage.getItem('ghRepo') || 'Web-Pages',
-            token: localStorage.getItem('ghToken') || ''
+            token: localStorage.getItem('ghToken') || '',
+            clientId: localStorage.getItem('ghClientId') || '',
+            workerUrl: localStorage.getItem('ghWorkerUrl') || ''
         };
 
         let pages = [];
+        let user = null;
         let currentEditingFile = null;
         let fileToDelete = null;
 
@@ -209,6 +217,119 @@
             return await res.json();
         }
 
+        // --- AUTH LOGIC ---
+        function login() {
+            if (!config.clientId) {
+                alert("Please configure GitHub Client ID in Settings first.");
+                toggleModal('settingsModal', true);
+                return;
+            }
+            const scope = 'repo';
+            window.location.href = `https://github.com/login/oauth/authorize?client_id=${config.clientId}&scope=${scope}`;
+        }
+
+        function logout() {
+            config.token = '';
+            user = null;
+            localStorage.removeItem('ghToken');
+            updateAuthUI();
+        }
+
+        async function checkAuth() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+
+            if (code) {
+                // Remove code from URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                await handleCallback(code);
+            }
+
+            if (config.token) {
+                try {
+                    const res = await fetch('https://api.github.com/user', {
+                        headers: { 'Authorization': `Bearer ${config.token}` }
+                    });
+                    if (res.ok) {
+                        user = await res.json();
+                        await checkPermissions();
+                    } else {
+                        logout();
+                    }
+                } catch (e) {
+                    console.error("Auth check failed", e);
+                }
+            }
+            updateAuthUI();
+        }
+
+        async function handleCallback(code) {
+            if (!config.clientId || !config.workerUrl) {
+                alert("Please configure Client ID and Worker URL in Settings first.");
+                toggleModal('settingsModal', true);
+                return;
+            }
+            try {
+                const res = await fetch(config.workerUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, client_id: config.clientId })
+                });
+                const data = await res.json();
+                if (data.access_token) {
+                    config.token = data.access_token;
+                    localStorage.setItem('ghToken', config.token);
+                } else {
+                    alert("Login failed: " + (data.error_description || data.error || "Unknown error"));
+                }
+            } catch (e) {
+                alert("Error during login: " + e.message);
+            }
+        }
+
+        async function checkPermissions() {
+            try {
+                const res = await fetch(`https://api.github.com/repos/${config.username}/${config.repo}`, {
+                    headers: { 'Authorization': `Bearer ${config.token}` }
+                });
+                if (res.ok) {
+                    const repoData = await res.json();
+                    user.canPush = repoData.permissions && repoData.permissions.push;
+                } else {
+                    user.canPush = false;
+                }
+            } catch (e) {
+                user.canPush = false;
+            }
+        }
+
+        function updateAuthUI() {
+            const authContainer = document.getElementById('authContainer');
+            if (user) {
+                authContainer.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <img src="${user.avatar_url}" class="w-8 h-8 rounded-full border border-slate-200" alt="${user.login}">
+                        <div class="hidden sm:block">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase leading-none">${user.canPush ? 'Admin' : 'Viewer'}</p>
+                            <p class="text-xs font-semibold text-slate-700">${user.login}</p>
+                        </div>
+                        <button onclick="logout()" class="text-slate-400 hover:text-rose-600 p-2 transition-colors" title="Logout">
+                            <i class="fa-solid fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                `;
+                document.getElementById('addPageBtn').style.display = user.canPush ? 'flex' : 'none';
+            } else {
+                authContainer.innerHTML = `
+                    <button onclick="login()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
+                        <i class="fa-brands fa-github text-base"></i> Login
+                    </button>
+                `;
+                document.getElementById('addPageBtn').style.display = 'none';
+            }
+            renderPages();
+        }
+
         // --- CORE LOGIC ---
         async function loadPages() {
             try {
@@ -245,7 +366,7 @@
                             <span class="bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded">
                                 ${p.category}
                             </span>
-                            <div class="actions flex gap-1">
+                            <div class="actions flex gap-1 ${user && user.canPush ? '' : 'hidden'}">
                                 <button onclick="editPage('${p.filename}')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all flex items-center justify-center">
                                     <i class="fa-solid fa-pen text-xs"></i>
                                 </button>
@@ -347,24 +468,30 @@
         }
 
         // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             // Fill settings
             document.getElementById('ghUsername').value = config.username;
             document.getElementById('ghRepo').value = config.repo;
-            document.getElementById('ghToken').value = config.token;
+            document.getElementById('ghClientId').value = config.clientId;
+            document.getElementById('ghWorkerUrl').value = config.workerUrl;
 
+            await checkAuth();
             loadPages();
 
             // Settings
             document.getElementById('settingsBtn').onclick = () => toggleModal('settingsModal', true);
-            document.getElementById('saveSettings').onclick = () => {
+            document.getElementById('saveSettings').onclick = async () => {
                 config.username = document.getElementById('ghUsername').value;
                 config.repo = document.getElementById('ghRepo').value;
-                config.token = document.getElementById('ghToken').value;
+                config.clientId = document.getElementById('ghClientId').value;
+                config.workerUrl = document.getElementById('ghWorkerUrl').value;
                 localStorage.setItem('ghUsername', config.username);
                 localStorage.setItem('ghRepo', config.repo);
-                localStorage.setItem('ghToken', config.token);
+                localStorage.setItem('ghClientId', config.clientId);
+                localStorage.setItem('ghWorkerUrl', config.workerUrl);
                 toggleModal('settingsModal', false);
+
+                await checkAuth();
                 loadPages();
             };
 
@@ -395,8 +522,7 @@
                 }
 
                 if (!config.token) {
-                    alert('GitHub Token is required to save changes. Please add it in Settings.');
-                    toggleModal('settingsModal', true);
+                    alert('Please login with GitHub to save changes.');
                     return;
                 }
 
